@@ -241,7 +241,7 @@ gsap.registerPlugin(ScrollTrigger);
 })();
 
 // =============================================
-// 4. WIG DISPLAY — 3D mannequin head with flowing hair
+// 4. WIG DISPLAY — bone straight full wig, drag + scroll rotation
 // =============================================
 (function initWigDisplay() {
   const canvas = document.getElementById('wig-canvas');
@@ -251,9 +251,9 @@ gsap.registerPlugin(ScrollTrigger);
   let H = canvas.offsetHeight || 620;
 
   const scene = new THREE.Scene();
-  const camera = new THREE.PerspectiveCamera(42, W / H, 0.1, 50);
-  camera.position.set(0, 0.6, 5.2);
-  camera.lookAt(0, -0.3, 0);
+  const camera = new THREE.PerspectiveCamera(40, W / H, 0.1, 50);
+  camera.position.set(0, 0.4, 5.5);
+  camera.lookAt(0, -0.5, 0);
 
   const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
   renderer.setSize(W, H);
@@ -262,135 +262,198 @@ gsap.registerPlugin(ScrollTrigger);
   const group = new THREE.Group();
   scene.add(group);
 
-  // --- Materials ---
-  const skinMat = new THREE.MeshStandardMaterial({ color: 0xc8946c, roughness: 0.72, metalness: 0 });
-  const hairMat = new THREE.MeshStandardMaterial({ color: 0x080808, metalness: 0.06, roughness: 0.38, side: THREE.DoubleSide });
-  const hairHighlightMat = new THREE.MeshStandardMaterial({ color: 0x1a0a00, metalness: 0.08, roughness: 0.35, side: THREE.DoubleSide });
+  // Head ellipsoid radii (sphere r=0.8, scaled 0.88, 1.12, 0.84)
+  const RX = 0.8 * 0.88;  // 0.704
+  const RY = 0.8 * 1.12;  // 0.896
+  const RZ = 0.8 * 0.84;  // 0.672
+  const HEAD_CY = 0.4;    // head center y
 
-  // === HEAD ===
-  const headGeom = new THREE.SphereGeometry(0.82, 36, 28);
-  const head = new THREE.Mesh(headGeom, skinMat);
-  head.scale.set(0.88, 1.14, 0.84);
-  head.position.y = 0.4;
+  // === MANNEQUIN HEAD ===
+  const headMat = new THREE.MeshStandardMaterial({ color: 0xd4c4b0, roughness: 0.68, metalness: 0 });
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.8, 40, 30), headMat);
+  head.scale.set(0.88, 1.12, 0.84);
+  head.position.y = HEAD_CY;
   group.add(head);
 
-  // === HAIR CAP (dome of hair over head) ===
-  // Open-ended sphere top for a natural parting/crown
-  const capGeom = new THREE.SphereGeometry(0.86, 36, 20, 0, Math.PI * 2, 0, Math.PI * 0.56);
-  const hairCap = new THREE.Mesh(capGeom, hairMat);
-  hairCap.scale.set(0.88, 1.14, 0.84);
-  hairCap.position.y = 0.4;
-  group.add(hairCap);
+  // === HAIR CAP ===
+  const hairMat = new THREE.MeshStandardMaterial({
+    color: 0x070707,
+    metalness: 0.07,
+    roughness: 0.28,
+    side: THREE.FrontSide,
+  });
+  const cap = new THREE.Mesh(
+    new THREE.SphereGeometry(0.82, 40, 22, 0, Math.PI * 2, 0, Math.PI * 0.54),
+    hairMat
+  );
+  cap.scale.set(0.88, 1.12, 0.84);
+  cap.position.y = HEAD_CY;
+  group.add(cap);
 
-  // === FLOWING HAIR STRANDS ===
-  const NUM_STRANDS = 60;
-  for (let i = 0; i < NUM_STRANDS; i++) {
-    const angle = (i / NUM_STRANDS) * Math.PI * 2;
-    const r = 0.70 + Math.random() * 0.14;
-    const sx = Math.cos(angle) * r * 0.88;
-    const sz = Math.sin(angle) * r * 0.84;
-    const sy = 0.4 + 0.18 + Math.sin(angle * 0.7) * 0.14 + Math.random() * 0.06;
+  // === BONE STRAIGHT HAIR — multi-ring dense coverage ===
+  // Each ring: [normalized radius 0-1, strand count]
+  const rings = [
+    [0.18, 6 ],
+    [0.34, 14],
+    [0.52, 22],
+    [0.68, 30],
+    [0.82, 40],
+    [0.94, 52],
+  ];
 
-    // Mid-point gives natural outward curve
-    const bow = 1.10 + Math.random() * 0.10;
-    const mx = sx * bow + (Math.random() - 0.5) * 0.14;
-    const mz = sz * bow + (Math.random() - 0.5) * 0.14;
-    const my = -0.55 + (Math.random() - 0.5) * 0.35;
+  rings.forEach(([rNorm, count]) => {
+    for (let i = 0; i < count; i++) {
+      const jitter = (Math.random() - 0.5) * (Math.PI * 2 / count) * 0.6;
+      const angle = (i / count) * Math.PI * 2 + jitter;
 
-    // End (long bone-straight fall with slight variation)
-    const ex = sx * 1.04 + (Math.random() - 0.5) * 0.18;
-    const ez = sz * 1.04 + (Math.random() - 0.5) * 0.18;
-    const ey = -2.65 - Math.random() * 0.55;
+      // Start position on ellipsoid surface
+      const sx = Math.cos(angle) * rNorm * RX;
+      const sz = Math.sin(angle) * rNorm * RZ;
 
-    const curve = new THREE.CatmullRomCurve3([
-      new THREE.Vector3(sx, sy, sz),
-      new THREE.Vector3(mx, my, mz),
-      new THREE.Vector3(ex, ey, ez),
-    ]);
+      // Find y on ellipsoid surface (upper hemisphere)
+      const underRoot = Math.max(0, 1 - (sx / RX) ** 2 - (sz / RZ) ** 2);
+      const sy = HEAD_CY + Math.sqrt(underRoot) * RY + 0.005;
 
-    const radius = 0.009 + Math.random() * 0.007;
-    const mat = Math.random() > 0.85 ? hairHighlightMat : hairMat;
-    group.add(new THREE.Mesh(new THREE.TubeGeometry(curve, 14, radius, 5, false), mat));
-  }
+      // Skip strands that would start below ear level
+      if (sy < HEAD_CY - 0.05) continue;
+
+      // BONE STRAIGHT: fall perfectly vertically
+      // x and z stay constant — only y changes
+      const hairLen = 3.4 + Math.random() * 0.4;
+      const ey = sy - hairLen;
+
+      // Microscopic natural variation (not visible but prevents z-fighting)
+      const v = 0.006;
+      const ex = sx + (Math.random() - 0.5) * v;
+      const ez = sz + (Math.random() - 0.5) * v;
+
+      const curve = new THREE.CatmullRomCurve3([
+        new THREE.Vector3(sx, sy, sz),
+        new THREE.Vector3(sx, sy - hairLen * 0.5, sz),
+        new THREE.Vector3(ex, ey, ez),
+      ]);
+
+      const r = 0.006 + Math.random() * 0.005;
+      group.add(new THREE.Mesh(
+        new THREE.TubeGeometry(curve, 6, r, 4, false),
+        hairMat
+      ));
+    }
+  });
 
   // === NECK ===
-  const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.30, 0.52, 20), skinMat);
-  neck.position.y = -0.60;
-  group.add(neck);
+  const skinMat = new THREE.MeshStandardMaterial({ color: 0xd4c4b0, roughness: 0.7, metalness: 0 });
+  group.add(Object.assign(
+    new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.30, 0.5, 20), skinMat),
+    { position: new THREE.Vector3(0, -0.58, 0) }
+  ));
 
-  // === BUST SHOULDER ===
-  const bust = new THREE.Mesh(new THREE.CylinderGeometry(0.44, 0.52, 0.28, 20), skinMat);
-  bust.position.y = -0.90;
-  group.add(bust);
+  // === BUST ===
+  group.add(Object.assign(
+    new THREE.Mesh(new THREE.CylinderGeometry(0.44, 0.52, 0.26, 20), skinMat),
+    { position: new THREE.Vector3(0, -0.88, 0) }
+  ));
 
   // === GROUND GLOW ===
   const wigGlow = new THREE.Mesh(
-    new THREE.CircleGeometry(1.3, 64),
-    new THREE.MeshBasicMaterial({ color: 0xC9A84C, transparent: true, opacity: 0.05, side: THREE.DoubleSide })
+    new THREE.CircleGeometry(1.4, 64),
+    new THREE.MeshBasicMaterial({ color: 0xC9A84C, transparent: true, opacity: 0.055, side: THREE.DoubleSide })
   );
   wigGlow.rotation.x = -Math.PI / 2;
-  wigGlow.position.y = -1.05;
+  wigGlow.position.y = -1.02;
   scene.add(wigGlow);
 
   // === LIGHTING ===
-  scene.add(new THREE.AmbientLight(0x1a0840, 4.5));
+  scene.add(new THREE.AmbientLight(0x1a0840, 5));
 
-  const key = new THREE.DirectionalLight(0xF5E0A0, 5);
+  const key = new THREE.DirectionalLight(0xF5E0A0, 5.5);
   key.position.set(3, 6, 4);
   scene.add(key);
 
-  const fill = new THREE.PointLight(0x3010a0, 3.5, 16);
-  fill.position.set(-3, 0.5, 1.5);
-  scene.add(fill);
+  // Side lights to reveal hair gloss
+  const sideL = new THREE.PointLight(0xF0D080, 4, 14);
+  sideL.position.set(-3.5, 1, 1);
+  scene.add(sideL);
 
-  const rim = new THREE.PointLight(0xC9A84C, 5, 12);
+  const sideR = new THREE.PointLight(0xF0D080, 4, 14);
+  sideR.position.set(3.5, 1, 1);
+  scene.add(sideR);
+
+  const rim = new THREE.PointLight(0xC9A84C, 5.5, 12);
   rim.position.set(0, 3, -4.5);
   scene.add(rim);
 
-  const hairShine = new THREE.PointLight(0xF0D080, 3.5, 10);
-  hairShine.position.set(1.5, 2, 2);
-  scene.add(hairShine);
-
-  const wigOrbit = new THREE.PointLight(0xF0D080, 3.5, 10);
+  const wigOrbit = new THREE.PointLight(0xF0D080, 4, 11);
   scene.add(wigOrbit);
 
-  // === SCROLL PARALLAX FOR WIG SECTION ===
-  let wigScrollY = 0;
+  // === DRAG / TOUCH ROTATION WITH MOMENTUM ===
+  let isDragging = false;
+  let prevDragX = 0;
+  let dragVel = 0;      // momentum velocity
+  let manualRotY = 0;   // accumulated drag rotation
+
+  // Mouse
+  canvas.addEventListener('mousedown', e => {
+    isDragging = true;
+    prevDragX = e.clientX;
+    dragVel = 0;
+  });
+  window.addEventListener('mousemove', e => {
+    if (!isDragging) return;
+    const dx = e.clientX - prevDragX;
+    dragVel = dx * 0.012;
+    manualRotY += dragVel;
+    prevDragX = e.clientX;
+  });
+  window.addEventListener('mouseup', () => { isDragging = false; });
+
+  // Touch / swipe
+  canvas.addEventListener('touchstart', e => {
+    isDragging = true;
+    prevDragX = e.touches[0].clientX;
+    dragVel = 0;
+    e.preventDefault();
+  }, { passive: false });
+  canvas.addEventListener('touchmove', e => {
+    if (!isDragging) return;
+    const dx = e.touches[0].clientX - prevDragX;
+    dragVel = dx * 0.012;
+    manualRotY += dragVel;
+    prevDragX = e.touches[0].clientX;
+    e.preventDefault();
+  }, { passive: false });
+  canvas.addEventListener('touchend', () => { isDragging = false; });
+
+  // === SCROLL ROTATION ===
+  let scrollRotY = 0;
   ScrollTrigger.create({
     trigger: '#wig-showcase',
     start: 'top bottom',
     end: 'bottom top',
     scrub: 1.5,
-    onUpdate: s => { wigScrollY = s.progress * Math.PI * 2.5; }
+    onUpdate: s => { scrollRotY = s.progress * Math.PI * 3; }
   });
 
-  // === MOUSE on wig section ===
-  let mTX = 0, mTY = 0, mCX = 0, mCY = 0;
   let autoY = 0, clk = 0;
-
-  const wigSection = document.getElementById('wig-showcase');
-  if (wigSection) {
-    wigSection.addEventListener('mousemove', e => {
-      const rect = wigSection.getBoundingClientRect();
-      mTY = ((e.clientX - rect.left) / rect.width - 0.5) * 0.5;
-      mTX = ((e.clientY - rect.top) / rect.height - 0.5) * 0.22;
-    });
-  }
 
   (function loop() {
     requestAnimationFrame(loop);
     clk += 0.011;
-    autoY += 0.003;
-    mCX += (mTX - mCX) * 0.04;
-    mCY += (mTY - mCY) * 0.04;
 
-    group.rotation.y = autoY + wigScrollY + mCY;
-    group.rotation.x = mCX;
-    group.position.y = Math.sin(clk * 0.6) * 0.06;
+    // Slow auto-spin (pauses feel when user drags)
+    if (!isDragging) {
+      autoY += 0.003;
+      // Apply momentum and decay
+      manualRotY += dragVel;
+      dragVel *= 0.91;
+    }
 
-    wigOrbit.position.x = Math.cos(clk * 0.5) * 4;
-    wigOrbit.position.z = Math.sin(clk * 0.5) * 4;
-    wigOrbit.position.y = 2 + Math.sin(clk * 0.25) * 1.2;
+    group.rotation.y = autoY + scrollRotY + manualRotY;
+    group.position.y = Math.sin(clk * 0.6) * 0.055;
+
+    wigOrbit.position.x = Math.cos(clk * 0.5) * 4.5;
+    wigOrbit.position.z = Math.sin(clk * 0.5) * 4.5;
+    wigOrbit.position.y = 2 + Math.sin(clk * 0.28) * 1.2;
 
     wigGlow.material.opacity = 0.04 + Math.sin(clk * 0.4) * 0.015;
 
