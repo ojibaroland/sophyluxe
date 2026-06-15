@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Sophy Luxe — Luxury fragrances and premium wigs crafted for the extraordinary Nigerian woman.">
+  <title>Sophy Luxe | Luxury Perfumes &amp; Premium Wigs</title>
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;600;700&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+
+  <!-- Stylesheet -->
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <!-- NAV -->
+  <nav id="main-nav">
+    <span class="nav-logo">SOPHY LUXE</span>
+    <div class="nav-links">
+      <a href="#hero">HOME</a>
+      <a href="#featured">WIGS</a>
+      <a href="#featured">PERFUMES</a>
+      <a href="#brand-story">CONTACT</a>
+    </div>
+  </nav>
+
+  <!-- HERO -->
+  <section id="hero">
+    <div class="hero-content">
+      <h1 class="hero-title">
+        <span class="gold-text">Wear the Scent. Own the Look.</span>
+      </h1>
+      <p class="hero-subtitle">Luxury fragrances and premium wigs, crafted for the extraordinary Nigerian woman.</p>
+      <div class="btn-group">
+        <a href="#featured" class="btn-gold">Shop Perfumes</a>
+        <a href="#featured" class="btn-gold">Shop Wigs</a>
+      </div>
+    </div>
+    <div class="hero-visual">
+      <canvas id="hero-canvas"></canvas>
+    </div>
+    <canvas id="particles-canvas"></canvas>
+  </section>
+
+  <!-- MARQUEE -->
+  <div class="marquee-wrapper">
+    <div class="marquee-track">
+      <span>SOPHY LUXE · LUXURY PERFUMES · PREMIUM WIGS · NIGERIAN BEAUTY · </span>
+      <span>SOPHY LUXE · LUXURY PERFUMES · PREMIUM WIGS · NIGERIAN BEAUTY · </span>
+      <span>SOPHY LUXE · LUXURY PERFUMES · PREMIUM WIGS · NIGERIAN BEAUTY · </span>
+      <span>SOPHY LUXE · LUXURY PERFUMES · PREMIUM WIGS · NIGERIAN BEAUTY · </span>
+    </div>
+  </div>
+
+  <!-- FEATURED COLLECTION -->
+  <section id="featured">
+    <div class="container">
+      <span class="section-heading">Featured Collection</span>
+      <p class="section-subheading">Handpicked pieces for the discerning woman</p>
+      <div id="featured-products" class="products-grid"></div>
+    </div>
+  </section>
+
+  <!-- STATS -->
+  <section id="stats">
+    <div class="stats-grid">
+      <div class="stat-item">
+        <span class="stat-number" data-target="500" data-suffix="+">0+</span>
+        <div class="stat-label">Happy Clients</div>
+      </div>
+      <div class="stat-item">
+        <span class="stat-number" data-target="20" data-suffix="+">0+</span>
+        <div class="stat-label">Signature Scents</div>
+      </div>
+      <div class="stat-item">
+        <span class="stat-number" data-target="15" data-suffix="+">0+</span>
+        <div class="stat-label">Wig Styles</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- BRAND STORY -->
+  <section id="brand-story">
+    <div class="container">
+      <span class="section-heading">Our Story</span>
+      <p class="brand-story-text">Born in Lagos, refined by luxury. Sophy Luxe was created for the modern Nigerian woman who demands excellence — in every spritz, in every strand. We curate only the finest international and locally-inspired fragrances and premium wigs, because you deserve nothing less than extraordinary.</p>
+      <a href="https://wa.me/2349073611555" class="btn-gold" target="_blank">Reach Us on WhatsApp</a>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer>
+    <div class="footer-inner">
+      <div>
+        <span class="footer-logo">SOPHY LUXE</span>
+        <p style="color: var(--text-muted); font-size: 0.85rem; line-height: 1.7;">Luxury fragrances and premium wigs for the extraordinary Nigerian woman.</p>
+      </div>
+      <div class="footer-links">
+        <a href="#hero">Home</a>
+        <a href="#featured">Wigs</a>
+        <a href="#featured">Perfumes</a>
+        <a href="#brand-story">Contact</a>
+      </div>
+      <div class="footer-contact">
+        <a class="whatsapp-link" href="https://wa.me/2349073611555" target="_blank">WhatsApp Us</a>
+      </div>
+    </div>
+    <p class="footer-copyright">© 2024 Sophy Luxe. All rights reserved.</p>
+  </footer>
+
+  <!-- CDN Libraries -->
+  <script src="https://cdn.jsdelivr.net/npm/@studio-freight/lenis@1.0.42/dist/lenis.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/ScrollTrigger.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+  <!-- App Scripts -->
+  <script src="js/products.js"></script>
+  <script src="js/main.js"></script>
+
+</body>
+</html>
