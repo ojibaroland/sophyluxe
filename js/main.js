@@ -187,199 +187,52 @@ function initPerfumeBottle() {
 }
 
 // =============================================
-// WIG DISPLAY — bone straight full wig, neutral lighting, true black hair
+// WIG DISPLAY — scroll-scrubbed video + GSAP tilt
 // =============================================
 function initWigDisplay() {
-  const canvas = document.getElementById('wig-canvas');
-  if (!canvas) return;
+  const video = document.getElementById('wig-video');
+  if (!video) return;
 
-  let [W, H] = canvasSize(canvas, 500, 620);
+  video.muted = true;
+  video.pause();
 
-  const scene = new THREE.Scene();
-  const camera = new THREE.PerspectiveCamera(38, W / H, 0.1, 50);
-  camera.position.set(0, 0.5, 5.8);
-  camera.lookAt(0, -0.2, 0);
+  const wrap = document.getElementById('wig-video-wrap');
 
-  const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
-  renderer.setSize(W, H);
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
-
-  const group = new THREE.Group();
-  scene.add(group);
-
-  const RX = 0.704, RY = 0.896, RZ = 0.672, CY = 0.4;
-
-  // === MANNEQUIN HEAD — neutral skin, not gold ===
-  const headMat = new THREE.MeshPhongMaterial({
-    color: 0xc8a882, specular: 0x111111, shininess: 18
-  });
-  const head = new THREE.Mesh(new THREE.SphereGeometry(0.8, 44, 32), headMat);
-  head.scale.set(0.88, 1.13, 0.84);
-  head.position.y = CY;
-  group.add(head);
-
-  // === HAIR CAP — jet black dome ===
-  const hairCapMat = new THREE.MeshPhongMaterial({
-    color: 0x030303, specular: 0x1a1a1a, shininess: 55, side: THREE.FrontSide
-  });
-  const hairCap = new THREE.Mesh(
-    new THREE.SphereGeometry(0.83, 44, 26, 0, Math.PI * 2, 0, Math.PI * 0.52),
-    hairCapMat
-  );
-  hairCap.scale.set(0.88, 1.13, 0.84);
-  hairCap.position.y = CY;
-  group.add(hairCap);
-
-  // === BONE STRAIGHT HAIR ===
-  const hairMat = new THREE.MeshPhongMaterial({
-    color: 0x060606,
-    specular: 0x2a2a2a,
-    shininess: 100,
-    side: THREE.DoubleSide,
+  video.addEventListener('loadedmetadata', () => {
+    ScrollTrigger.create({
+      trigger: '#wig-showcase',
+      start: 'top bottom',
+      end: 'bottom top',
+      onUpdate: (self) => {
+        if (!video.duration) return;
+        video.currentTime = self.progress * video.duration;
+      }
+    });
   });
 
-  // SOLID HAIR CURTAINS — flat planes arranged radially, completely hide neck/gaps
-  // Three layers: inner hugs head, mid, outer gives volume
-  const curtainLayers = [
-    { pr: 0.905, count: 72, len: 4.0 },
-    { pr: 0.960, count: 80, len: 4.15 },
-    { pr: 1.020, count: 88, len: 4.25 },
-  ];
+  if (!wrap) return;
 
-  curtainLayers.forEach(({ pr, count, len }, li) => {
-    const circum = 2 * Math.PI * pr * RX;
-    const curtainW = (circum / count) * 1.45; // 45% overlap = no gaps
-
-    for (let i = 0; i < count; i++) {
-      const angleOffset = (li * Math.PI) / count; // stagger layers
-      const angle = (i / count) * Math.PI * 2 + angleOffset;
-
-      const px = Math.cos(angle) * pr * RX;
-      const pz = Math.sin(angle) * pr * RZ;
-
-      // Start Y: where this strand exits the cap (surface of ellipsoid at this radius)
-      const underRoot = Math.max(0, 1 - pr * pr);
-      const startY = CY + Math.sqrt(underRoot) * RY + 0.01;
-
-      const lenVar = Math.random() * 0.3;
-      const centerY = startY - (len + lenVar) / 2;
-
-      const geom = new THREE.PlaneGeometry(curtainW, len + lenVar, 1, 1);
-      const mesh = new THREE.Mesh(geom, hairMat);
-      mesh.position.set(px, centerY, pz);
-      // Face the plane outward (away from center axis)
-      mesh.lookAt(new THREE.Vector3(0, centerY, 0));
-      group.add(mesh);
-    }
+  wrap.addEventListener('mousemove', e => {
+    const rect = wrap.getBoundingClientRect();
+    const x = (e.clientX - rect.left) / rect.width - 0.5;
+    const y = (e.clientY - rect.top) / rect.height - 0.5;
+    gsap.to(wrap, { rotateY: x * 15, rotateX: -y * 10, duration: 0.5, ease: 'power2.out', transformPerspective: 900 });
   });
 
-  // Fine tube strands layered ON TOP of curtains — adds realistic strand texture
-  const strandMat = new THREE.MeshPhongMaterial({
-    color: 0x060606, specular: 0x282828, shininess: 95, side: THREE.DoubleSide
-  });
-  for (let i = 0; i < 160; i++) {
-    const angle = (i / 160) * Math.PI * 2 + (Math.random() - 0.5) * 0.08;
-    const pr = 0.88 + Math.random() * 0.18;
-    const sx = Math.cos(angle) * pr * RX;
-    const sz = Math.sin(angle) * pr * RZ;
-    const underRoot = Math.max(0, 1 - pr * pr);
-    const sy = CY + Math.sqrt(underRoot) * RY + 0.005;
-    const hairLen = 3.9 + Math.random() * 0.4;
-    const ey = sy - hairLen;
-
-    const curve = new THREE.CatmullRomCurve3([
-      new THREE.Vector3(sx, sy, sz),
-      new THREE.Vector3(sx, sy - hairLen * 0.5, sz),
-      new THREE.Vector3(sx, ey, sz),
-    ]);
-    const r = 0.003 + Math.random() * 0.002;
-    group.add(new THREE.Mesh(new THREE.TubeGeometry(curve, 4, r, 4, false), strandMat));
-  }
-
-  // === NECK + BUST ===
-  const skinMat = new THREE.MeshPhongMaterial({ color: 0xc8a882, specular: 0x0a0a0a, shininess: 12 });
-  const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.30, 0.52, 20), skinMat);
-  neck.position.y = -0.60; group.add(neck);
-  const bust = new THREE.Mesh(new THREE.CylinderGeometry(0.44, 0.52, 0.26, 20), skinMat);
-  bust.position.y = -0.90; group.add(bust);
-
-  // === GROUND GLOW ===
-  const wigGlow = new THREE.Mesh(
-    new THREE.CircleGeometry(1.5, 64),
-    new THREE.MeshBasicMaterial({ color: 0xC9A84C, transparent: true, opacity: 0.05, side: THREE.DoubleSide })
-  );
-  wigGlow.rotation.x = -Math.PI / 2; wigGlow.position.y = -1.05; scene.add(wigGlow);
-
-  // === LIGHTING — bright studio, reveals black hair sheen ===
-  scene.add(new THREE.AmbientLight(0x222222, 12));
-
-  // Strong key light from upper-right — main highlight on hair
-  const wKey = new THREE.DirectionalLight(0xffffff, 7.0);
-  wKey.position.set(3.5, 6, 3); scene.add(wKey);
-
-  // Front fill — stops face going fully black
-  const wFront = new THREE.PointLight(0xffffff, 4.0, 14);
-  wFront.position.set(0, 2, 5); scene.add(wFront);
-
-  // Top light — crown sheen
-  const wTop = new THREE.PointLight(0xffffff, 4.5, 12);
-  wTop.position.set(0, 6, 1); scene.add(wTop);
-
-  // Left fill — reveals left side hair shape
-  const wFill = new THREE.PointLight(0xaabbee, 3.5, 18);
-  wFill.position.set(-4, 1, 2); scene.add(wFill);
-
-  // Gold rim from behind — silhouette glow on hair edges
-  const wRim = new THREE.PointLight(0xC9A84C, 3.5, 12);
-  wRim.position.set(0, 3.5, -5); scene.add(wRim);
-
-  // Orbiting white highlight
-  const wOrbit = new THREE.PointLight(0xffffff, 3.0, 10);
-  scene.add(wOrbit);
-
-  // === DRAG / TOUCH ROTATION WITH MOMENTUM ===
-  let isDragging = false, prevDragX = 0, dragVel = 0, manualRotY = 0;
-
-  canvas.addEventListener('mousedown', e => { isDragging = true; prevDragX = e.clientX; dragVel = 0; });
-  window.addEventListener('mousemove', e => {
-    if (!isDragging) return;
-    const dx = e.clientX - prevDragX; dragVel = dx * 0.012; manualRotY += dragVel; prevDragX = e.clientX;
-  });
-  window.addEventListener('mouseup', () => { isDragging = false; });
-
-  canvas.addEventListener('touchstart', e => {
-    isDragging = true; prevDragX = e.touches[0].clientX; dragVel = 0; e.preventDefault();
-  }, { passive: false });
-  canvas.addEventListener('touchmove', e => {
-    if (!isDragging) return;
-    const dx = e.touches[0].clientX - prevDragX; dragVel = dx * 0.012;
-    manualRotY += dragVel; prevDragX = e.touches[0].clientX; e.preventDefault();
-  }, { passive: false });
-  canvas.addEventListener('touchend', () => { isDragging = false; });
-
-  // === SCROLL ROTATION ===
-  let scrollRotY = 0;
-  ScrollTrigger.create({
-    trigger: '#wig-showcase', start: 'top bottom', end: 'bottom top', scrub: 1.5,
-    onUpdate: s => { scrollRotY = s.progress * Math.PI * 3; }
+  wrap.addEventListener('mouseleave', () => {
+    gsap.to(wrap, { rotateY: 0, rotateX: 0, duration: 0.8, ease: 'power3.out' });
   });
 
-  let autoY = 0, clk = 0;
-  (function loop() {
-    requestAnimationFrame(loop); clk += 0.011;
-    if (!isDragging) { autoY += 0.003; manualRotY += dragVel; dragVel *= 0.91; }
-    group.rotation.y = autoY + scrollRotY + manualRotY;
-    group.position.y = Math.sin(clk * 0.55) * 0.05;
-    wOrbit.position.x = Math.cos(clk * 0.45) * 4;
-    wOrbit.position.z = Math.sin(clk * 0.45) * 4;
-    wOrbit.position.y = 2.5;
-    wigGlow.material.opacity = 0.038 + Math.sin(clk * 0.4) * 0.012;
-    renderer.render(scene, camera);
-  })();
+  wrap.addEventListener('touchmove', e => {
+    const touch = e.touches[0];
+    const rect = wrap.getBoundingClientRect();
+    const x = (touch.clientX - rect.left) / rect.width - 0.5;
+    const y = (touch.clientY - rect.top) / rect.height - 0.5;
+    gsap.to(wrap, { rotateY: x * 12, rotateX: -y * 8, duration: 0.3, ease: 'power2.out', transformPerspective: 900 });
+  }, { passive: true });
 
-  window.addEventListener('resize', () => {
-    [W, H] = canvasSize(canvas, 500, 620);
-    camera.aspect = W / H; camera.updateProjectionMatrix(); renderer.setSize(W, H);
+  wrap.addEventListener('touchend', () => {
+    gsap.to(wrap, { rotateY: 0, rotateX: 0, duration: 0.8, ease: 'power3.out' });
   });
 }
 
