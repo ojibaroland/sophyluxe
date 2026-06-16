@@ -232,9 +232,9 @@ function initWigDisplay() {
 
   // === BONE STRAIGHT HAIR ===
   const hairMat = new THREE.MeshPhongMaterial({
-    color: 0x040404,
-    specular: 0x161616,
-    shininess: 65,
+    color: 0x060606,
+    specular: 0x2a2a2a,
+    shininess: 100,
     side: THREE.DoubleSide,
   });
 
@@ -275,7 +275,7 @@ function initWigDisplay() {
 
   // Fine tube strands layered ON TOP of curtains — adds realistic strand texture
   const strandMat = new THREE.MeshPhongMaterial({
-    color: 0x050505, specular: 0x111111, shininess: 55, side: THREE.DoubleSide
+    color: 0x060606, specular: 0x282828, shininess: 95, side: THREE.DoubleSide
   });
   for (let i = 0; i < 160; i++) {
     const angle = (i / 160) * Math.PI * 2 + (Math.random() - 0.5) * 0.08;
@@ -310,28 +310,31 @@ function initWigDisplay() {
   );
   wigGlow.rotation.x = -Math.PI / 2; wigGlow.position.y = -1.05; scene.add(wigGlow);
 
-  // === LIGHTING — neutral studio, NOT gold-heavy ===
-  // Soft dark ambient so hair reads as black
-  scene.add(new THREE.AmbientLight(0x080808, 10));
+  // === LIGHTING — bright studio, reveals black hair sheen ===
+  scene.add(new THREE.AmbientLight(0x222222, 12));
 
-  // Key light: neutral white from upper-right (studio)
-  const wKey = new THREE.DirectionalLight(0xffffff, 3.5);
+  // Strong key light from upper-right — main highlight on hair
+  const wKey = new THREE.DirectionalLight(0xffffff, 7.0);
   wKey.position.set(3.5, 6, 3); scene.add(wKey);
 
-  // Top light: brings out hair sheen from above
-  const wTop = new THREE.PointLight(0xffffff, 2.5, 12);
-  wTop.position.set(0, 5, 1); scene.add(wTop);
+  // Front fill — stops face going fully black
+  const wFront = new THREE.PointLight(0xffffff, 4.0, 14);
+  wFront.position.set(0, 2, 5); scene.add(wFront);
 
-  // Cool blue fill: from left (prevents flat look without adding gold)
-  const wFill = new THREE.PointLight(0x8899dd, 2, 18);
+  // Top light — crown sheen
+  const wTop = new THREE.PointLight(0xffffff, 4.5, 12);
+  wTop.position.set(0, 6, 1); scene.add(wTop);
+
+  // Left fill — reveals left side hair shape
+  const wFill = new THREE.PointLight(0xaabbee, 3.5, 18);
   wFill.position.set(-4, 1, 2); scene.add(wFill);
 
-  // Gold rim ONLY from behind: creates the shiny hair-edge effect
-  const wRim = new THREE.PointLight(0xC9A84C, 2.2, 12);
+  // Gold rim from behind — silhouette glow on hair edges
+  const wRim = new THREE.PointLight(0xC9A84C, 3.5, 12);
   wRim.position.set(0, 3.5, -5); scene.add(wRim);
 
-  // Soft orbiting fill (white, not gold)
-  const wOrbit = new THREE.PointLight(0xeeeeee, 1.5, 10);
+  // Orbiting white highlight
+  const wOrbit = new THREE.PointLight(0xffffff, 3.0, 10);
   scene.add(wOrbit);
 
   // === DRAG / TOUCH ROTATION WITH MOMENTUM ===
