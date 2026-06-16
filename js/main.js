@@ -187,68 +187,86 @@ function initPerfumeBottle() {
 }
 
 // =============================================
-// WIG DISPLAY — scroll-scrubbed video + GSAP tilt
+// WIG DISPLAY — scroll-scrubbed video + swipe scrub + GSAP tilt
 // =============================================
 function initWigDisplay() {
   const video = document.getElementById('wig-video');
   if (!video) return;
-
   video.muted = true;
-  const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 
-  function primeAndSetup() {
+  const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+  let videoReady = false;
+
+  function primeVideo() {
     video.play().then(() => {
-      if (isMobile) {
-        // Mobile: just let it loop — iOS won't scrub without user gesture
-        video.loop = true;
-      } else {
-        // Desktop: pause after priming, then hand off to scroll scrubbing
-        video.pause();
-        video.currentTime = 0;
-      }
-    }).catch(() => {
-      // Autoplay blocked — fall back to loop
-      video.loop = true;
-    });
+      video.pause();
+      video.currentTime = 0;
+      videoReady = true;
+    }).catch(() => {});
   }
 
   if (video.readyState >= 1) {
-    primeAndSetup();
+    primeVideo();
   } else {
-    video.addEventListener('loadedmetadata', primeAndSetup, { once: true });
+    video.addEventListener('loadedmetadata', primeVideo, { once: true });
   }
 
-  // Scroll scrub — desktop only (mobile plays naturally)
-  ScrollTrigger.create({
-    trigger: '#wig-showcase',
-    start: 'top bottom',
-    end: 'bottom top',
-    onUpdate: (self) => {
-      if (isMobile || !video.duration || video.loop) return;
-      video.currentTime = self.progress * video.duration;
-    }
-  });
-
   const wrap = document.getElementById('wig-video-wrap');
+
+  // === DESKTOP: scroll scrubs video + mouse tilt ===
+  if (!isMobile) {
+    ScrollTrigger.create({
+      trigger: '#wig-showcase',
+      start: 'top bottom',
+      end: 'bottom top',
+      onUpdate: (self) => {
+        if (!video.duration || !videoReady) return;
+        video.currentTime = self.progress * video.duration;
+      }
+    });
+
+    if (wrap) {
+      wrap.addEventListener('mousemove', e => {
+        const rect = wrap.getBoundingClientRect();
+        const x = (e.clientX - rect.left) / rect.width - 0.5;
+        const y = (e.clientY - rect.top) / rect.height - 0.5;
+        gsap.to(wrap, { rotateY: x * 15, rotateX: -y * 10, duration: 0.5, ease: 'power2.out', transformPerspective: 900 });
+      });
+      wrap.addEventListener('mouseleave', () => {
+        gsap.to(wrap, { rotateY: 0, rotateX: 0, duration: 0.8, ease: 'power3.out' });
+      });
+    }
+    return;
+  }
+
+  // === MOBILE: swipe right = forward, swipe left = backward ===
   if (!wrap) return;
 
-  wrap.addEventListener('mousemove', e => {
-    const rect = wrap.getBoundingClientRect();
-    const x = (e.clientX - rect.left) / rect.width - 0.5;
-    const y = (e.clientY - rect.top) / rect.height - 0.5;
-    gsap.to(wrap, { rotateY: x * 15, rotateX: -y * 10, duration: 0.5, ease: 'power2.out', transformPerspective: 900 });
-  });
+  let touchStartX = 0;
+  let startTime = 0;
 
-  wrap.addEventListener('mouseleave', () => {
-    gsap.to(wrap, { rotateY: 0, rotateX: 0, duration: 0.8, ease: 'power3.out' });
-  });
+  wrap.addEventListener('touchstart', e => {
+    touchStartX = e.touches[0].clientX;
+    startTime = video.currentTime || 0;
+    // Prime on first touch in case load-time call failed
+    if (!videoReady) primeVideo();
+  }, { passive: true });
 
   wrap.addEventListener('touchmove', e => {
     const touch = e.touches[0];
     const rect = wrap.getBoundingClientRect();
+
+    // Tilt based on finger position
     const x = (touch.clientX - rect.left) / rect.width - 0.5;
     const y = (touch.clientY - rect.top) / rect.height - 0.5;
     gsap.to(wrap, { rotateY: x * 12, rotateX: -y * 8, duration: 0.3, ease: 'power2.out', transformPerspective: 900 });
+
+    // Scrub video based on horizontal drag distance
+    if (!video.duration || !videoReady) return;
+    const deltaX = touch.clientX - touchStartX;
+    // 280px swipe = full video duration
+    const scrubAmount = (deltaX / 280) * video.duration;
+    video.currentTime = Math.max(0, Math.min(video.duration, startTime + scrubAmount));
   }, { passive: true });
 
   wrap.addEventListener('touchend', () => {
