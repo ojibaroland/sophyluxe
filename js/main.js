@@ -194,22 +194,42 @@ function initWigDisplay() {
   if (!video) return;
 
   video.muted = true;
-  video.pause();
+  const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 
-  const wrap = document.getElementById('wig-video-wrap');
-
-  video.addEventListener('loadedmetadata', () => {
-    ScrollTrigger.create({
-      trigger: '#wig-showcase',
-      start: 'top bottom',
-      end: 'bottom top',
-      onUpdate: (self) => {
-        if (!video.duration) return;
-        video.currentTime = self.progress * video.duration;
+  function primeAndSetup() {
+    video.play().then(() => {
+      if (isMobile) {
+        // Mobile: just let it loop — iOS won't scrub without user gesture
+        video.loop = true;
+      } else {
+        // Desktop: pause after priming, then hand off to scroll scrubbing
+        video.pause();
+        video.currentTime = 0;
       }
+    }).catch(() => {
+      // Autoplay blocked — fall back to loop
+      video.loop = true;
     });
+  }
+
+  if (video.readyState >= 1) {
+    primeAndSetup();
+  } else {
+    video.addEventListener('loadedmetadata', primeAndSetup, { once: true });
+  }
+
+  // Scroll scrub — desktop only (mobile plays naturally)
+  ScrollTrigger.create({
+    trigger: '#wig-showcase',
+    start: 'top bottom',
+    end: 'bottom top',
+    onUpdate: (self) => {
+      if (isMobile || !video.duration || video.loop) return;
+      video.currentTime = self.progress * video.duration;
+    }
   });
 
+  const wrap = document.getElementById('wig-video-wrap');
   if (!wrap) return;
 
   wrap.addEventListener('mousemove', e => {
