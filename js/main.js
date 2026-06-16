@@ -187,7 +187,7 @@ function initPerfumeBottle() {
 }
 
 // =============================================
-// WIG DISPLAY — scroll-scrubbed video + swipe scrub + GSAP tilt
+// WIG DISPLAY — autoplay loop + swipe scrub + GSAP tilt
 // =============================================
 function initWigDisplay() {
   const video = document.getElementById('wig-video');
@@ -195,26 +195,21 @@ function initWigDisplay() {
   video.muted = true;
 
   const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-  let videoReady = false;
-
-  function primeVideo() {
-    video.play().then(() => {
-      video.pause();
-      video.currentTime = 0;
-      videoReady = true;
-    }).catch(() => {});
-  }
-
-  if (video.readyState >= 1) {
-    primeVideo();
-  } else {
-    video.addEventListener('loadedmetadata', primeVideo, { once: true });
-  }
-
   const wrap = document.getElementById('wig-video-wrap');
 
-  // === DESKTOP: scroll scrubs video + mouse tilt ===
+  // === DESKTOP: prime → pause → scroll scrub + mouse tilt ===
   if (!isMobile) {
+    let videoReady = false;
+    function primeDesktop() {
+      video.play().then(() => {
+        video.pause();
+        video.currentTime = 0;
+        videoReady = true;
+      }).catch(() => {});
+    }
+    if (video.readyState >= 1) { primeDesktop(); }
+    else { video.addEventListener('loadedmetadata', primeDesktop, { once: true }); }
+
     ScrollTrigger.create({
       trigger: '#wig-showcase',
       start: 'top bottom',
@@ -239,7 +234,10 @@ function initWigDisplay() {
     return;
   }
 
-  // === MOBILE: swipe right = forward, swipe left = backward ===
+  // === MOBILE: autoplay loop; touch pauses + scrubs; release resumes ===
+  video.loop = true;
+  video.play().catch(() => {});
+
   if (!wrap) return;
 
   let touchStartX = 0;
@@ -247,29 +245,27 @@ function initWigDisplay() {
 
   wrap.addEventListener('touchstart', e => {
     touchStartX = e.touches[0].clientX;
-    startTime = video.currentTime || 0;
-    // Prime on first touch in case load-time call failed
-    if (!videoReady) primeVideo();
+    startTime = video.currentTime || 0; // capture live position
+    video.pause();                       // pause while scrubbing
   }, { passive: true });
 
   wrap.addEventListener('touchmove', e => {
     const touch = e.touches[0];
     const rect = wrap.getBoundingClientRect();
 
-    // Tilt based on finger position
+    // 3D tilt from finger position
     const x = (touch.clientX - rect.left) / rect.width - 0.5;
     const y = (touch.clientY - rect.top) / rect.height - 0.5;
     gsap.to(wrap, { rotateY: x * 12, rotateX: -y * 8, duration: 0.3, ease: 'power2.out', transformPerspective: 900 });
 
-    // Scrub video based on horizontal drag distance
-    if (!video.duration || !videoReady) return;
-    const deltaX = touch.clientX - touchStartX;
-    // 280px swipe = full video duration
-    const scrubAmount = (deltaX / 280) * video.duration;
+    // Horizontal drag scrubs — 280px = full duration
+    if (!video.duration) return;
+    const scrubAmount = ((touch.clientX - touchStartX) / 280) * video.duration;
     video.currentTime = Math.max(0, Math.min(video.duration, startTime + scrubAmount));
   }, { passive: true });
 
   wrap.addEventListener('touchend', () => {
+    video.play().catch(() => {}); // resume from scrubbed position
     gsap.to(wrap, { rotateY: 0, rotateX: 0, duration: 0.8, ease: 'power3.out' });
   });
 }
