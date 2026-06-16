@@ -231,80 +231,70 @@ function initWigDisplay() {
   group.add(hairCap);
 
   // === BONE STRAIGHT HAIR ===
-  // Material: true black Phong — NO metalness, subtle specular for silk gloss
-  const strandMat = new THREE.MeshPhongMaterial({
+  const hairMat = new THREE.MeshPhongMaterial({
     color: 0x040404,
-    specular: 0x141414,
-    shininess: 60,
+    specular: 0x161616,
+    shininess: 65,
     side: THREE.DoubleSide,
   });
 
-  // Multi-ring system — outer rings give perimeter shape, inner rings fill volume
-  // [normalised radius 0–1, strand count, hair length]
-  const rings = [
-    [0.20,  8, 3.6],
-    [0.38, 18, 3.7],
-    [0.55, 28, 3.8],
-    [0.70, 38, 3.9],
-    [0.83, 50, 4.0],
-    [0.95, 62, 4.0],
+  // SOLID HAIR CURTAINS — flat planes arranged radially, completely hide neck/gaps
+  // Three layers: inner hugs head, mid, outer gives volume
+  const curtainLayers = [
+    { pr: 0.905, count: 72, len: 4.0 },
+    { pr: 0.960, count: 80, len: 4.15 },
+    { pr: 1.020, count: 88, len: 4.25 },
   ];
 
-  rings.forEach(([rNorm, count, hairLen]) => {
+  curtainLayers.forEach(({ pr, count, len }, li) => {
+    const circum = 2 * Math.PI * pr * RX;
+    const curtainW = (circum / count) * 1.45; // 45% overlap = no gaps
+
     for (let i = 0; i < count; i++) {
-      const jitter = (Math.random() - 0.5) * (Math.PI * 2 / count) * 0.55;
-      const angle  = (i / count) * Math.PI * 2 + jitter;
+      const angleOffset = (li * Math.PI) / count; // stagger layers
+      const angle = (i / count) * Math.PI * 2 + angleOffset;
 
-      const sx = Math.cos(angle) * rNorm * RX;
-      const sz = Math.sin(angle) * rNorm * RZ;
-      const underRoot = Math.max(0, 1 - (sx / RX) ** 2 - (sz / RZ) ** 2);
-      const sy = CY + Math.sqrt(underRoot) * RY + 0.008;
+      const px = Math.cos(angle) * pr * RX;
+      const pz = Math.sin(angle) * pr * RZ;
 
-      if (sy < CY - 0.06) continue;
+      // Start Y: where this strand exits the cap (surface of ellipsoid at this radius)
+      const underRoot = Math.max(0, 1 - pr * pr);
+      const startY = CY + Math.sqrt(underRoot) * RY + 0.01;
 
-      // BONE STRAIGHT: x and z do not change as hair falls
-      const lenVar = Math.random() * 0.35;
-      const ey = sy - hairLen - lenVar;
+      const lenVar = Math.random() * 0.3;
+      const centerY = startY - (len + lenVar) / 2;
 
-      // Sub-millimetre position jitter only — prevents z-fighting, invisible to eye
-      const j = 0.005;
-      const ex = sx + (Math.random() - 0.5) * j;
-      const ez = sz + (Math.random() - 0.5) * j;
-
-      const curve = new THREE.CatmullRomCurve3([
-        new THREE.Vector3(sx, sy, sz),
-        new THREE.Vector3(sx, sy - (hairLen + lenVar) * 0.5, sz),
-        new THREE.Vector3(ex, ey, ez),
-      ]);
-
-      // Thin radius — hair, not bars
-      const r = 0.0028 + Math.random() * 0.0022;
-      group.add(new THREE.Mesh(
-        new THREE.TubeGeometry(curve, 5, r, 4, false),
-        strandMat
-      ));
+      const geom = new THREE.PlaneGeometry(curtainW, len + lenVar, 1, 1);
+      const mesh = new THREE.Mesh(geom, hairMat);
+      mesh.position.set(px, centerY, pz);
+      // Face the plane outward (away from center axis)
+      mesh.lookAt(new THREE.Vector3(0, centerY, 0));
+      group.add(mesh);
     }
   });
 
-  // Extra fine LineSegments layer — adds density without GPU cost
-  const linePositions = [];
-  const fineRings = [[0.60, 35], [0.75, 45], [0.88, 55]];
-  fineRings.forEach(([rNorm, count]) => {
-    for (let i = 0; i < count; i++) {
-      const angle = (i / count) * Math.PI * 2 + (Math.random() - 0.5) * 0.12;
-      const sx = Math.cos(angle) * rNorm * RX;
-      const sz = Math.sin(angle) * rNorm * RZ;
-      const underRoot = Math.max(0, 1 - (sx / RX) ** 2 - (sz / RZ) ** 2);
-      const sy = CY + Math.sqrt(underRoot) * RY;
-      const ey = sy - 4.0 - Math.random() * 0.3;
-      linePositions.push(sx, sy, sz, sx, ey, sz);
-    }
+  // Fine tube strands layered ON TOP of curtains — adds realistic strand texture
+  const strandMat = new THREE.MeshPhongMaterial({
+    color: 0x050505, specular: 0x111111, shininess: 55, side: THREE.DoubleSide
   });
-  const lineGeo = new THREE.BufferGeometry();
-  lineGeo.setAttribute('position', new THREE.Float32BufferAttribute(linePositions, 3));
-  group.add(new THREE.LineSegments(lineGeo,
-    new THREE.LineBasicMaterial({ color: 0x080808, transparent: true, opacity: 0.85 })
-  ));
+  for (let i = 0; i < 160; i++) {
+    const angle = (i / 160) * Math.PI * 2 + (Math.random() - 0.5) * 0.08;
+    const pr = 0.88 + Math.random() * 0.18;
+    const sx = Math.cos(angle) * pr * RX;
+    const sz = Math.sin(angle) * pr * RZ;
+    const underRoot = Math.max(0, 1 - pr * pr);
+    const sy = CY + Math.sqrt(underRoot) * RY + 0.005;
+    const hairLen = 3.9 + Math.random() * 0.4;
+    const ey = sy - hairLen;
+
+    const curve = new THREE.CatmullRomCurve3([
+      new THREE.Vector3(sx, sy, sz),
+      new THREE.Vector3(sx, sy - hairLen * 0.5, sz),
+      new THREE.Vector3(sx, ey, sz),
+    ]);
+    const r = 0.003 + Math.random() * 0.002;
+    group.add(new THREE.Mesh(new THREE.TubeGeometry(curve, 4, r, 4, false), strandMat));
+  }
 
   // === NECK + BUST ===
   const skinMat = new THREE.MeshPhongMaterial({ color: 0xc8a882, specular: 0x0a0a0a, shininess: 12 });
